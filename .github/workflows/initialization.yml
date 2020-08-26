@@ -1,0 +1,58 @@
+# Cleans up the repository from it's template state to user-ready state
+# This workflow is based from
+# https://github.com/JetBrains/intellij-platform-plugin-template/blob/master/.github/workflows/initialization.yml
+name: Repository Initialization
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+
+  initialization:
+    name: Repository Initialization
+    runs-on: ubuntu-latest
+    if: github.repository != 'jimschubert/go-cli-template'
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Cleanup
+        run: |
+          export LC_CTYPE=C
+          export LANG=C
+
+          # Prepare variables
+          NAME="${GITHUB_REPOSITORY##*/}"
+          ACTOR=$(echo $GITHUB_ACTOR | tr '[:upper:]' '[:lower:]')
+          PACKAGE_SED_PATTERN="github\.com\/$ACTOR\/$NAME"
+          REPOSITORY_SED_PATTERN="${GITHUB_REPOSITORY/\//\\/}"
+
+          # Replace placeholders in the initialization files
+          find .github/initialization/ -type f -exec sed -i "s/%NAME%/$NAME/g" {} +
+          find .github/initialization/ -type f -exec sed -i "s/%REPOSITORY%/${REPOSITORY_SED_PATTERN}/g" {} +
+          find .github/initialization/ -type f -exec sed -i "s/%PACKAGE%/${PACKAGE_SED_PATTERN}/g" {} +
+
+          # Remove lines marked with #REMOVE-ON-CLEANUP#
+          find . -type f -exec sed -i '/#REMOVE-ON-CLEANUP#/d' {} +
+
+          # Move content
+          cp -R .github/initialization/* .
+          cp -R .github/initialization/cmd/*.go cmd/
+
+          # Cleanup
+          rm -rf .github/initialization
+          rm .github/workflows/initialization.yml
+
+      - name: Commit files
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Initialized from jimschubert/go-cli-template"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}

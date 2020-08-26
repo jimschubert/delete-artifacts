@@ -1,0 +1,61 @@
+name: Build
+on: [push, pull_request]
+jobs:
+
+  build:
+    name: go test
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Set up Go
+        uses: actions/setup-go@v2-beta
+        with:
+          # Version here has to match one returned via https://golang.org/dl/?mode=json&include=all
+          go-version: '1.14'
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Cache go module
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build and Test
+        run: go test -v ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build
+    name: docker build/publish
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    # Don't publish on initial commit. After initial commit, this step can be removed.
+    - name: Guard on Initial Commit
+      run: |
+        [[ $(git log --format=oneline | wc -l | tr -cd '[:digit:]') = 1 ]] && exit 1
+        exit 0
+    - name: Docker Login Github
+      if: github.ref == 'refs/heads/master'
+      run: >-
+        echo "${{ secrets.GITHUB_TOKEN }}"
+        | docker login -u ${GITHUB_ACTOR} --password-stdin docker.pkg.github.com
+
+    - name: Build
+      if: github.ref == 'refs/heads/master'
+      run: docker build -t docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REPOSITORY#*/}:latest --build-arg APP_NAME=${GITHUB_REPOSITORY#*/} .
+
+    - name: Publish Latest to GitHub Package Registry
+      if: github.ref == 'refs/heads/master'
+      run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REPOSITORY#*/}:latest
+
+    - name: Clear
+      if: always() && github.ref == 'refs/heads/master'
+      run: |
+        rm -f ${HOME}/.docker/config.json

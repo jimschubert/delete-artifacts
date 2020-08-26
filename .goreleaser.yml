@@ -1,0 +1,77 @@
+# Check the documentation at http://goreleaser.com
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod download
+    # you may remove this if you don't need go generate
+    - go generate ./...
+builds:
+  - env:
+      - CGO_ENABLED=0
+    # Custom ldflags templates.
+    # Default is `-s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser`.
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .ShortCommit }} -X main.date={{ .Date }} -X main.projectName={{ .ProjectName }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - 386
+      - arm
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: windows
+        goarch: 386
+    # Path to main.go file or main package.
+    # Default is `.`.
+    main: ./cmd/main.go
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+
+    format: tar.gz
+
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: desc
+  filters:
+    exclude:
+      - '^doc[s]?:'
+      - '^\[doc[s]?\]'
+      - '^wip:'
+      - '^WIP:'
+dockers:
+  -
+    goos: linux
+    goarch: 386
+
+    image_templates:
+      - "docker.pkg.github.com/{{ .Env.GITHUB_ACTOR }}/{{ .ProjectName }}/{{ .ProjectName }}:latest"
+      - "docker.pkg.github.com/{{ .Env.GITHUB_ACTOR }}/{{ .ProjectName }}/{{ .ProjectName }}:{{ .Tag }}"
+      # - "docker.pkg.github.com/{{ .Env.GITHUB_ACTOR }}/{{ .ProjectName }}/{{ .ProjectName }}:v{{ .Major }}"
+
+    dockerfile: release.Dockerfile
+
+    build_flag_templates:
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.name={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--build-arg=APP_NAME={{ .ProjectName }}"
