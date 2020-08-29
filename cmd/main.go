@@ -25,7 +25,7 @@ var opts struct {
 	MinBytes int64   `long:"min" description:"Minimum size in bytes. Artifacts greater than this size will be deleted." optional:"yes" default:"50000000"`
 	MaxBytes *int64  `long:"max" description:"Maximum size in bytes. Artifacts less than this size will be deleted" optional:"yes"`
 	Name     string  `short:"n" long:"name" description:"Artifact name to be deleted" optional:"yes" default:""`
-	Pattern  string  `short:"p" long:"pattern" description:"Regex pattern for matching artifact name to be deleted" optional:"yes" default:""`
+	Pattern  string  `short:"p" long:"pattern" description:"Regex pattern (POSIX) for matching artifact name to be deleted" optional:"yes" default:""`
 	DryRun   bool    `long:"dry-run" description:"Dry-run that does not perform deletions"`
 	Version  bool    `short:"v" long:"version" description:"Display version information"`
 }
@@ -75,13 +75,14 @@ func main() {
 		log.WithError(err).Errorf("execution failed.")
 		return
 	}
-	_, _ = fmt.Fprint(os.Stdout, "Run complete.")
+
+	log.Info("Run complete.")
 }
 
 func initLogging() {
 	logLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if !ok {
-		logLevel = "error"
+		logLevel = "info"
 	}
 	ll, err := log.ParseLevel(logLevel)
 	if err != nil {

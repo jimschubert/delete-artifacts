@@ -6,7 +6,7 @@ Command line application to delete artifacts from a GitHub Workflow
 ![Go Version](https://img.shields.io/github/go-mod/go-version/jimschubert/delete-artifacts)
 ![Go](https://github.com/jimschubert/delete-artifacts/workflows/Build/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jimschubert/delete-artifacts)](https://goreportcard.com/report/github.com/jimschubert/delete-artifacts)
-![Docker Pulls](https://img.shields.io/docker/pulls/jimschubert/delete-artifacts)
+[![Docker Pulls](https://img.shields.io/docker/pulls/jimschubert/delete-artifacts)](https://hub.docker.com/r/jimschubert/delete-artifacts)
 <!-- [![codecov](https://codecov.io/gh/jimschubert/delete-artifacts/branch/master/graph/badge.svg)](https://codecov.io/gh/jimschubert/delete-artifacts) --> 
 
 ## Usage
@@ -22,13 +22,12 @@ Application Options:
       --min=     Minimum size in bytes. Artifacts greater than this size will be deleted. (default: 50000000)
       --max=     Maximum size in bytes. Artifacts less than this size will be deleted
   -n, --name=    Artifact name to be deleted
-  -p, --pattern= Regex pattern for matching artifact name to be deleted
+  -p, --pattern= Regex pattern (POSIX) for matching artifact name to be deleted
       --dry-run  Dry-run that does not perform deletions
   -v, --version  Display version information
 
 Help Options:
   -h, --help     Show this help message
-
 ```
 
 ### Examples
@@ -55,6 +54,15 @@ delete-artifacts --dry-run --owner=jimschubert --repo=delete-artifacts-test --pa
 ## Installation
 
 Latest binary releases are available via [GitHub Releases](https://github.com/jimschubert/delete-artifacts/releases).
+
+## Via Docker
+
+Pass the required environment variable(s) to Docker and run like so:
+
+```bash
+docker run -e GITHUB_TOKEN jimschubert/delete-artifacts:latest \
+    --dry-run --owner=jimschubert --repo=delete-artifacts-test --pattern='\.bin' --min=0
+```
 
 ## Build
 
@@ -104,6 +112,25 @@ go build cmd/main.go
 * Run
 ```shell
 ./main
+```
+
+## Loggign
+
+Having issues? Set `LOG_LEVEL` environment variable to one of `debug`, `info`, `warn`, or `error`.
+
+Log outputs with messages and structured fields. For example:
+
+```text
+INFO[0000] delete-artifacts is checking the repo         owner=jimschubert repo=delete-artifacts-test
+DEBU[0000] Querying artifacts across all workflows.     
+DEBU[0000] Iterating artifact.                           name=artifact.bin size=1048576
+DEBU[0000] MinBytes filter has matched.                  MinBytes=0
+DEBU[0000] Found a set of artifacts for slated deletion.  count=1
+DEBU[0000] Querying artifacts across all workflows.     
+DEBU[0000] Zero artifacts remaining for query.          
+DEBU[0000] Total number of artifacts to delete.          count=1
+INFO[0000] Deleting artifact                             name=artifact.bin size=1048576
+INFO[0000] Run complete.                    
 ```
 
 ## License

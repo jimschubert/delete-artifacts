@@ -1,3 +1,5 @@
+# Generates an artifact of some arbitrary size and name, on-demand.
+# Navigate to the Actions tab, select "Generate Artifact" workflow, then dropdown "Run Workflow" and trigger with desired options
 name: Generate Artifact
 on:
   workflow_dispatch:

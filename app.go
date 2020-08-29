@@ -37,6 +37,8 @@ func (a *App) Run() error {
 		return err
 	}
 
+	log.WithFields(log.Fields{"owner": *a.Owner, "repo": *a.Repo}).Info("delete-artifacts is checking the repo")
+
 	executionContext, cancel := context.WithTimeout(*a.context, 2*time.Minute)
 	defer cancel()
 
@@ -67,6 +69,7 @@ func (a *App) Run() error {
 			if items != nil {
 				filtered := a.filterArtifacts(items)
 				if len(filtered) > 0 {
+					log.WithFields(log.Fields{"count": len(filtered)}).Debug("Found a set of artifacts for slated deletion.")
 					for _, artifact := range filtered {
 						all = append(all, artifact)
 					}
@@ -76,14 +79,17 @@ func (a *App) Run() error {
 			if len(all) == 0 {
 				log.Info("No artifacts to delete!")
 			} else {
+				log.WithFields(log.Fields{"count": len(all)}).Debug("Total number of artifacts to delete.")
 				if a.DryRun {
 					for _, artifact := range all {
-						log.WithFields(log.Fields{"size": artifact.GetSizeInBytes(), "name": artifact.GetName()}).Warn("DryRun: would have deleted the artifact")
+						log.WithFields(log.Fields{"size": artifact.GetSizeInBytes(), "name": artifact.GetName()}).
+							Warn("DryRun: would have deleted the artifact")
 					}
 				} else {
 					// perform the deletions. Synchronously is fine here.
 					for _, artifact := range all {
-						log.WithFields(log.Fields{"size": artifact.GetSizeInBytes(), "name": artifact.GetName()}).Info("Deleting artifact")
+						log.WithFields(log.Fields{"size": artifact.GetSizeInBytes(), "name": artifact.GetName()}).
+							Info("Deleting artifact")
 						_, err := a.client.Actions.DeleteArtifact(executionContext, *a.Owner, *a.Repo, artifact.GetID())
 						if err != nil {
 							log.Warnf("Error deleting %s (artifact ID %d), ignoring…", artifact.GetName(), artifact.GetID())
@@ -104,24 +110,35 @@ func (a *App) filterArtifacts(artifacts []*github.Artifact) []*github.Artifact {
 		size := artifact.GetSizeInBytes()
 		// note MinBytes is required. it will short-circuit all other checks
 		if size >= a.MinBytes {
+			log.WithFields(log.Fields{"MinBytes": a.MinBytes}).Debug("MinBytes filter has matched.")
 			shouldAdd = true
 		}
 
 		if shouldAdd && a.MaxBytes != nil && size > *a.MaxBytes {
+			log.WithFields(log.Fields{"MaxBytes": *a.MaxBytes}).Debug("MaxBytes filter has matched.")
 			shouldAdd = false
 		}
 
 		if shouldAdd && len(a.Name) > 0 && artifact.GetName() == a.Name {
+			log.WithFields(log.Fields{"Name": artifact.GetName()}).Debug("Name filter has matched.")
 			shouldAdd = true
 		}
 
 		if shouldAdd && len(a.Pattern) > 0 {
-			re := regexp.MustCompile(a.Pattern)
-			shouldAdd = re.MatchString(artifact.GetName())
+			re, err := regexp.CompilePOSIX(a.Pattern)
+			if err != nil {
+				log.WithFields(log.Fields{"pattern": a.Pattern}).
+					Error("Failed to compile the pattern. Artifact will not match ANY conditions.")
+				shouldAdd = false
+			} else {
+				shouldAdd = re.MatchString(artifact.GetName())
+			}
 		}
 
 		if shouldAdd {
 			filtered = append(filtered, artifact)
+		} else {
+			log.Debug("filterArtifacts had no matches this time.")
 		}
 	}
 	return filtered
@@ -136,8 +153,10 @@ func (a *App) retrieveArtifactsByPage(wg *sync.WaitGroup, parent *context.Contex
 	var list *github.ArtifactList
 	opts := &github.ListOptions{PerPage: 100, Page: page}
 	if a.RunId != nil {
+		log.WithFields(log.Fields{"runId": *a.RunId}).Debug("Querying artifacts for a specific run.")
 		list, _, err = a.client.Actions.ListWorkflowRunArtifacts(ctx, *a.Owner, *a.Repo, *a.RunId, opts)
 	} else {
+		log.Debug("Querying artifacts across all workflows.")
 		list, _, err = a.client.Actions.ListArtifacts(ctx, *a.Owner, *a.Repo, opts)
 	}
 
@@ -154,6 +173,8 @@ func (a *App) retrieveArtifactsByPage(wg *sync.WaitGroup, parent *context.Contex
 		go func(p int) {
 			a.retrieveArtifactsByPage(wg, parent, p, itemsChan, errChan)
 		}(page + 1)
+	} else {
+		log.Debug("Zero artifacts remaining for query.")
 	}
 }
 
