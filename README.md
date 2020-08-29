@@ -1,6 +1,6 @@
 # delete-artifacts
 
-Command line application to delete artifacts from a GitHub Workflow
+Command line application to delete artifacts from a GitHub Workflow.
 
 [![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue)](./LICENSE)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/jimschubert/delete-artifacts)
@@ -8,6 +8,18 @@ Command line application to delete artifacts from a GitHub Workflow
 [![Go Report Card](https://goreportcard.com/badge/github.com/jimschubert/delete-artifacts)](https://goreportcard.com/report/github.com/jimschubert/delete-artifacts)
 [![Docker Pulls](https://img.shields.io/docker/pulls/jimschubert/delete-artifacts)](https://hub.docker.com/r/jimschubert/delete-artifacts)
 <!-- [![codecov](https://codecov.io/gh/jimschubert/delete-artifacts/branch/master/graph/badge.svg)](https://codecov.io/gh/jimschubert/delete-artifacts) --> 
+
+
+From [GitHub Workflow's Documentation](https://docs.github.com/en/actions/configuring-and-managing-workflows/persisting-workflow-data-using-artifacts)
+
+> Artifacts automatically expire after 90 days, but you can always reclaim used GitHub Actions storage by deleting artifacts before they expire on GitHub.
+
+Wouldn't it be better if you could do this without manually going through every damn workflow to click delete? With `delete-artifacts`, you can:
+
+* Delete your largest artifacts only
+* Delete your artifacts for a given run
+* Automate deleting your artifacts according to a schedule
+* Avoid unnecessary costs for your private repositories
 
 ## Usage
 
