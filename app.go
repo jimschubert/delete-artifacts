@@ -18,16 +18,17 @@ import (
 
 // App is the main application container
 type App struct {
-	Owner    *string
-	Repo     *string
-	RunId    *int64
-	MinBytes int64
-	MaxBytes *int64
-	Name     string
-	Pattern  string
-	DryRun   bool
-	context  *context.Context
-	client   *github.Client
+	Owner          *string
+	Repo           *string
+	RunId          *int64
+	MinBytes       int64
+	MaxBytes       *int64
+	Name           string
+	Pattern        string
+	DryRun         bool
+	ActiveDuration string
+	context        *context.Context
+	client         *github.Client
 }
 
 // Run the application
@@ -119,9 +120,25 @@ func (a *App) filterArtifacts(artifacts []*github.Artifact) []*github.Artifact {
 			shouldAdd = false
 		}
 
-		if shouldAdd && len(a.Name) > 0 && artifact.GetName() == a.Name {
-			log.WithFields(log.Fields{"Name": artifact.GetName()}).Debug("Name filter has matched.")
-			shouldAdd = true
+		if shouldAdd && len(a.Name) > 0 {
+			shouldAdd = artifact.GetName() == a.Name
+			log.WithFields(log.Fields{"Name": artifact.GetName(), "match": shouldAdd}).Debug("Name filter condition.")
+		}
+
+		if shouldAdd && len(a.ActiveDuration) > 0 {
+			duration, err := time.ParseDuration(a.ActiveDuration)
+			if err != nil {
+				log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration, "see": "https://golang.org/pkg/time/#ParseDuration"}).
+					Error("Failed to parse duration string.")
+			} else {
+				if duration > 0 {
+					mustBeBefore := time.Now().Add(- duration)
+					shouldAdd = artifact.GetCreatedAt().Before(mustBeBefore)
+					log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration, "match": shouldAdd}).Debug("ActiveDuration filter condition.")
+				} else {
+					log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration}).Debug("Duration must be positive.")
+				}
+			}
 		}
 
 		if shouldAdd && len(a.Pattern) > 0 {
@@ -195,7 +212,7 @@ func (a *App) checkPreconditions() error {
 }
 
 // New creates an instance of App
-func New(owner *string, repo *string, runId *int64, minBytes int64, maxBytes *int64, name string, pattern string, dryRun bool) (*App, error) {
+func New(owner *string, repo *string, runId *int64, minBytes int64, maxBytes *int64, name string, pattern string, activeDuration string, dryRun bool) (*App, error) {
 	token, found := os.LookupEnv("GITHUB_TOKEN")
 	if !found {
 		return nil, errors.New("GITHUB_TOKEN environment variable is missing")
@@ -208,16 +225,17 @@ func New(owner *string, repo *string, runId *int64, minBytes int64, maxBytes *in
 	client := github.NewClient(tc)
 
 	app := &App{
-		Owner:    owner,
-		Repo:     repo,
-		RunId:    runId,
-		MinBytes: minBytes,
-		MaxBytes: maxBytes,
-		Name:     name,
-		Pattern:  pattern,
-		DryRun:   dryRun,
-		context:  &ctx,
-		client:   client,
+		Owner:          owner,
+		Repo:           repo,
+		RunId:          runId,
+		MinBytes:       minBytes,
+		MaxBytes:       maxBytes,
+		Name:           name,
+		Pattern:        pattern,
+		DryRun:         dryRun,
+		ActiveDuration: activeDuration,
+		context:        &ctx,
+		client:         client,
 	}
 
 	return app, nil

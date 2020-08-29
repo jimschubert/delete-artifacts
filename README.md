@@ -35,6 +35,7 @@ Application Options:
       --max=     Maximum size in bytes. Artifacts less than this size will be deleted
   -n, --name=    Artifact name to be deleted
   -p, --pattern= Regex pattern (POSIX) for matching artifact name to be deleted
+  -a, --active=  Consider artifacts as 'active' within this time frame, and avoid deletion. Duration formatted such as 23h59m.
       --dry-run  Dry-run that does not perform deletions
   -v, --version  Display version information
 
