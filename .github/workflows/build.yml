@@ -36,11 +36,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v1
 
-    # Don't publish on initial commit. After initial commit, this step can be removed.
-    - name: Guard on Initial Commit
-      run: |
-        [[ $(git log --format=oneline | wc -l | tr -cd '[:digit:]') = 1 ]] && exit 1
-        exit 0
     - name: Docker Login Github
       if: github.ref == 'refs/heads/master'
       run: >-
