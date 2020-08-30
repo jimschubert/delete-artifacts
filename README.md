@@ -127,7 +127,7 @@ go build cmd/main.go
 ./main
 ```
 
-## Loggign
+## Logging
 
 Having issues? Set `LOG_LEVEL` environment variable to one of `debug`, `info`, `warn`, or `error`.
 
