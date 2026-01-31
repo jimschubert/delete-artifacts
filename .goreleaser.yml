@@ -86,7 +86,7 @@ changelog:
       - '(?i)update readme'
 dockers_v2:
   - images:
-      - "docker.pkg.github.com/jimschubert/{{ .ProjectName }}/{{ .ProjectName }}"
+      - "jimschubert/delete-artifacts"
     tags:
       - "latest"
       - "{{ .Tag }}"
