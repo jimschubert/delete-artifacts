@@ -1,5 +1,9 @@
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: ".github/workflows"
+    schedule:
+      interval: "weekly"
   # Configuration for security updates only (auto-merge candidates)
   - package-ecosystem: "gomod"
     directory: "/"
