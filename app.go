@@ -71,9 +71,7 @@ func (a *App) Run() error {
 				filtered := a.filterArtifacts(items)
 				if len(filtered) > 0 {
 					log.WithFields(log.Fields{"count": len(filtered)}).Debug("Found a set of artifacts for slated deletion.")
-					for _, artifact := range filtered {
-						all = append(all, artifact)
-					}
+					all = append(all, filtered...)
 				}
 			}
 		case <-doneChan:
@@ -132,7 +130,7 @@ func (a *App) filterArtifacts(artifacts []*github.Artifact) []*github.Artifact {
 					Error("Failed to parse duration string.")
 			} else {
 				if duration > 0 {
-					mustBeBefore := time.Now().Add(- duration)
+					mustBeBefore := time.Now().Add(-duration)
 					shouldAdd = artifact.GetCreatedAt().Before(mustBeBefore)
 					log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration, "match": shouldAdd}).Debug("ActiveDuration filter condition.")
 				} else {
