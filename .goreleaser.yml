@@ -1,4 +1,6 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # Check the documentation at http://goreleaser.com
+version: 2
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -26,52 +28,74 @@ builds:
         goarch: 386
       - goos: windows
         goarch: 386
+      - goos: windows
+        goarch: arm
     # Path to main.go file or main package.
     # Default is `.`.
     main: ./cmd/main.go
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
-
-    format: tar.gz
-
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - LICENSE
       - README.md
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
-  sort: desc
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^.*?(feat|new|initial|support|introduce)\b.*?:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?(fix|bug)\b.*?:|.*fixes$'
+      order: 1
+    - title: Documentation
+      regexp: '^.*?docs?(\(.+\))?\b.*?:'
+      order: 2
+    - title: Dependency Updates
+      regexp: '^.*?(build|deps|upgrade|update)(\(.+\))?\b.*?:'
+      order: 3
+    - title: Other Changes
+      regexp: '.*'
+      order: 999
   filters:
     exclude:
-      - '^doc[s]?:'
-      - '^\[doc[s]?\]'
-      - '^wip:'
-      - '^WIP:'
-dockers:
-  -
-    goos: linux
-    goarch: 386
-
-    image_templates:
-      - "docker.pkg.github.com/{{ .Env.GITHUB_ACTOR }}/{{ .ProjectName }}/{{ .ProjectName }}:latest"
-      - "docker.pkg.github.com/{{ .Env.GITHUB_ACTOR }}/{{ .ProjectName }}/{{ .ProjectName }}:{{ .Tag }}"
-      # - "docker.pkg.github.com/{{ .Env.GITHUB_ACTOR }}/{{ .ProjectName }}/{{ .ProjectName }}:v{{ .Major }}"
-
+      - '^wip\b'
+      - '^WIP\b'
+      - '(?i)^help\b'
+      - '(?i)^trying\b'
+      - '(?i)^workflow\b'
+      - '(?i)^test\b'
+      - '(?i)^style\b'
+      - '^chore\b'
+      - '(?i)update readme'
+dockers_v2:
+  - images:
+      - "docker.pkg.github.com/jimschubert/{{ .ProjectName }}/{{ .ProjectName }}"
+    tags:
+      - "latest"
+      - "{{ .Tag }}"
+      # - "v{{ .Major }}"
     dockerfile: release.Dockerfile
-
-    build_flag_templates:
-      - "--label=org.opencontainers.image.created={{ .Date }}"
-      - "--label=org.opencontainers.image.name={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--build-arg=APP_NAME={{ .ProjectName }}"
+    labels:
+      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.name": "{{ .ProjectName }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.version": "{{ .Version }}"
+    build_args:
+      APP_NAME: "{{ .ProjectName }}"
