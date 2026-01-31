@@ -1,6 +1,8 @@
 name: Dependabot Auto-merge Security Updates
 
-on: pull_request
+on:
+  pull_request:
+    types: [opened, reopened]
 
 permissions:
   contents: write
@@ -25,6 +27,7 @@ jobs:
 
       - name: Auto-approve security PRs
         if: steps.check.outputs.is_security == 'true'
+        continue-on-error: true
         run: gh pr review ${{ github.event.pull_request.number }} --approve --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
