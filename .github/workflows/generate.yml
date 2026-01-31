@@ -23,7 +23,7 @@ jobs:
           echo "Created file ${{ github.event.inputs.name }} (${{ github.event.inputs.size }})"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ github.event.inputs.name }}
           path: ${{ github.event.inputs.name }}
