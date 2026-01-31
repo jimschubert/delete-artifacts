@@ -125,17 +125,14 @@ func (a *App) filterArtifacts(artifacts []*github.Artifact) []*github.Artifact {
 
 		if shouldAdd && len(a.ActiveDuration) > 0 {
 			duration, err := time.ParseDuration(a.ActiveDuration)
-			if err != nil {
+			if err != nil || duration <= 0 {
 				log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration, "see": "https://golang.org/pkg/time/#ParseDuration"}).
-					Error("Failed to parse duration string.")
+					Error("Failed to parse as positive duration string. Artifact will not match ANY conditions.")
+				shouldAdd = false
 			} else {
-				if duration > 0 {
-					mustBeBefore := time.Now().Add(-duration)
-					shouldAdd = artifact.GetCreatedAt().Before(mustBeBefore)
-					log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration, "match": shouldAdd}).Debug("ActiveDuration filter condition.")
-				} else {
-					log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration}).Debug("Duration must be positive.")
-				}
+				mustBeBefore := time.Now().Add(-duration)
+				shouldAdd = artifact.GetCreatedAt().Before(mustBeBefore)
+				log.WithFields(log.Fields{"ActiveDuration": a.ActiveDuration, "match": shouldAdd}).Debug("ActiveDuration filter condition.")
 			}
 		}
 
