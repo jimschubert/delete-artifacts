@@ -63,6 +63,8 @@ func main() {
 		opts.Pattern,
 		opts.ActiveDuration,
 		opts.DryRun)
+
+	// testing.
 	ctx.FatalIfErrorf(err, "unable to construct application with specific parameters.")
 	err = application.Run()
 	ctx.FatalIfErrorf(err, "execution failed.")
