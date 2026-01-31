@@ -13,27 +13,21 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
-      - name: Check if PR is security update
-        id: check
-        run: |
-          labels=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels[].name' --repo ${{ github.repository }})
-          if echo "$labels" | grep -q "security"; then
-            echo "is_security=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_security=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Auto-approve security PRs
-        if: steps.check.outputs.is_security == 'true'
+        if: steps.metadata.outputs.alert-state == 'OPEN'
         continue-on-error: true
         run: gh pr review ${{ github.event.pull_request.number }} --approve --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Enable auto-merge for security PRs
-        if: steps.check.outputs.is_security == 'true'
+        if: steps.metadata.outputs.alert-state == 'OPEN'
         run: gh pr merge ${{ github.event.pull_request.number }} --auto --squash --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
