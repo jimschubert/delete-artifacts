@@ -12,6 +12,15 @@ on:
         description: 'Artifact name'
         required: true
         default: 'artifact.bin'
+      delete_artifact:
+        description: 'Delete artifact after upload'
+        required: false
+        type: boolean
+        default: false
+      delete_ref:
+        description: 'Branch/tag/SHA for delete-artifacts (builds from source)'
+        required: false
+        default: 'master'
 
 jobs:
   build:
@@ -27,3 +36,23 @@ jobs:
         with:
           name: ${{ github.event.inputs.name }}
           path: ${{ github.event.inputs.name }}
+
+      - name: Checkout delete-artifacts
+        if: ${{ github.event.inputs.delete_artifact == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.delete_ref }}
+
+      - name: Build and run delete-artifacts
+        if: ${{ github.event.inputs.delete_artifact == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          go build -o delete-artifacts ./cmd
+          ./delete-artifacts \
+            --owner=${{ github.repository_owner }} \
+            --repo=${{ github.event.repository.name }} \
+            --run-id=${{ github.run_id }} \
+            --name="${{ github.event.inputs.name }}" \
+            --min=0
+
