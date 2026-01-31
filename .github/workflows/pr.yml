@@ -1,0 +1,10 @@
+name: Build Go
+on:
+  pull_request:
+
+jobs:
+  build:
+    uses: jimschubert/.workflows/.github/workflows/go-pr.yml@main
+    with:
+      golangci-lint-version: "v2.7.2"
+    secrets: inherit
