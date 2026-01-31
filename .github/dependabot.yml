@@ -1,0 +1,36 @@
+version: 2
+updates:
+  # Configuration for security updates only (auto-merge candidates)
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    # Only security updates
+    allow:
+      - dependency-type: "direct"
+        update-types: ["security"]
+      - dependency-type: "indirect"
+        update-types: ["security"]
+    labels:
+      - "dependencies"
+      - "security"
+      - "go"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+
+  # Configuration for all other updates (manual review required)
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "go"
+      - "manual-review"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
