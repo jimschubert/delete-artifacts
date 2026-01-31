@@ -61,7 +61,7 @@ func main() {
 		opts.MaxBytes,
 		opts.Name,
 		opts.Pattern,
-		"",
+		opts.ActiveDuration,
 		opts.DryRun)
 	ctx.FatalIfErrorf(err, "unable to construct application with specific parameters.")
 	err = application.Run()
