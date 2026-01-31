@@ -1,0 +1,266 @@
+# Copyright 2020 Jim Schubert
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PR Integration Test
+on:
+  pull_request:
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/integration.yml'
+
+# Explicit permissions for PR workflows
+permissions:
+  contents: read
+  actions: write  # Required to delete artifacts
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  ARTIFACT_PREFIX: "integration-test-${{ github.run_id }}"
+
+jobs:
+  # Generate test artifacts
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate test file
+        run: |
+          truncate -s 1M test-artifact.bin
+          echo "Created test-artifact.bin (1M)"
+
+      - name: Upload artifact for active_duration test
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.ARTIFACT_PREFIX }}-by-active"
+          path: test-artifact.bin
+
+      - name: Upload artifact for name test
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.ARTIFACT_PREFIX }}-by-name"
+          path: test-artifact.bin
+
+      - name: Upload artifact for pattern test
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.ARTIFACT_PREFIX }}.pat"
+          path: test-artifact.bin
+
+      - name: Upload artifact for run_id test
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.ARTIFACT_PREFIX }}-by-runid"
+          path: test-artifact.bin
+
+  # Test deletion by active_duration
+  delete-by-active-duration:
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build binary
+        run: |
+          go build -o delete-artifacts ./cmd
+          chmod +x delete-artifacts
+
+      - name: Delete by active_duration (expect no deletions - artifacts too new)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ./delete-artifacts \
+            --owner=${{ github.repository_owner }} \
+            --repo=${{ github.event.repository.name }} \
+            --run-id=${{ github.run_id }} \
+            --name="${{ env.ARTIFACT_PREFIX }}-by-active" \
+            --active=30m \
+            --min=0 \
+            --log-level=debug
+
+      - name: Verify artifact still exists (too new to delete)
+        run: |
+          ARTIFACTS=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[].name')
+          if ! echo "$ARTIFACTS" | grep -q "${{ env.ARTIFACT_PREFIX }}-by-active"; then
+            echo "::error::Artifact should NOT have been deleted (active_duration not exceeded)"
+            exit 1
+          fi
+          echo "✅ Artifact correctly preserved (active_duration not exceeded)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Sleep 1 minute
+        run: |
+          echo "Sleeping for 1 minute, then we'll use duration 30s"
+          sleep 60
+
+      - name: Delete by active_duration (expect deletion - artifacts old enough)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ./delete-artifacts \
+            --owner=${{ github.repository_owner }} \
+            --repo=${{ github.event.repository.name }} \
+            --run-id=${{ github.run_id }} \
+            --name="${{ env.ARTIFACT_PREFIX }}-by-active" \
+            --active=30s \
+            --min=0 \
+            --log-level=debug
+
+      - name: Verify artifact deleted
+        run: |
+          sleep 2
+          ARTIFACTS=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[].name')
+          if echo "$ARTIFACTS" | grep -q "${{ env.ARTIFACT_PREFIX }}-by-active"; then
+            echo "::error::Artifact should have been deleted (active_duration exceeded)"
+            exit 1
+          fi
+          echo "✅ Artifact correctly deleted (active_duration exceeded)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Test deletion by name
+  delete-by-name:
+    needs: delete-by-active-duration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build binary
+        run: |
+          go build -o delete-artifacts ./cmd
+          chmod +x delete-artifacts
+
+      - name: Delete by artifact_name
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ./delete-artifacts \
+            --owner=${{ github.repository_owner }} \
+            --repo=${{ github.event.repository.name }} \
+            --run-id=${{ github.run_id }} \
+            --name="${{ env.ARTIFACT_PREFIX }}-by-name" \
+            --min=0 \
+            --log-level=debug
+
+      - name: Verify artifact deleted
+        run: |
+          sleep 2
+          ARTIFACTS=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[].name')
+          if echo "$ARTIFACTS" | grep -q "${{ env.ARTIFACT_PREFIX }}-by-name"; then
+            echo "::error::Artifact should have been deleted by name"
+            exit 1
+          fi
+          echo "✅ Artifact correctly deleted by name"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Test deletion by pattern
+  delete-by-pattern:
+    needs: delete-by-name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build binary
+        run: |
+          go build -o delete-artifacts ./cmd
+          chmod +x delete-artifacts
+
+      - name: Delete by pattern
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ./delete-artifacts \
+            --owner=${{ github.repository_owner }} \
+            --repo=${{ github.event.repository.name }} \
+            --run-id=${{ github.run_id }} \
+            --pattern='\.pat$' \
+            --min=0 \
+            --log-level=debug
+
+      - name: Verify artifact deleted
+        run: |
+          sleep 2
+          ARTIFACTS=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[].name')
+          if echo "$ARTIFACTS" | grep -q "${{ env.ARTIFACT_PREFIX }}.pat"; then
+            echo "::error::Artifact should have been deleted by pattern"
+            exit 1
+          fi
+          echo "✅ Artifact correctly deleted by pattern"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Test deletion by run_id (cleanup remaining artifacts)
+  delete-by-run-id:
+    needs: delete-by-pattern
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build binary
+        run: |
+          go build -o delete-artifacts ./cmd
+          chmod +x delete-artifacts
+
+      - name: Delete by run_id
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ./delete-artifacts \
+            --owner=${{ github.repository_owner }} \
+            --repo=${{ github.event.repository.name }} \
+            --run-id=${{ github.run_id }} \
+            --min=0 \
+            --log-level=debug
+
+      - name: Verify all artifacts deleted
+        run: |
+          sleep 2
+          ARTIFACTS=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '.artifacts[].name')
+          COUNT=$(echo "$ARTIFACTS" | grep -c "${{ env.ARTIFACT_PREFIX }}" || true)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error::Expected 0 test artifacts after run_id cleanup, found $COUNT"
+            exit 1
+          fi
+          echo "✅ All test artifacts successfully deleted!"
+        env:
+          GH_TOKEN: ${{ github.token }}
