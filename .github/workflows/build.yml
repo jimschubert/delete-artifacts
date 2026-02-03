@@ -7,6 +7,10 @@ on:
 permissions:
   contents: write
   packages: write
+  # id-token is required for attestation (signing)
+  id-token: write
+  attestations: write
+  artifact-metadata: write
 
 jobs:
   build:
