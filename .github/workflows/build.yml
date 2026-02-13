@@ -18,3 +18,13 @@ jobs:
     with:
       golangci-lint-version: "v2.7.2"
     secrets: inherit
+
+  mirror-to-ghcr:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: jimschubert/.workflows/.github/workflows/docker-mirror.yml@main
+    with:
+      source-image: jimschubert/delete-artifacts:${{ github.ref_name }}
+      target-image: ghcr.io/jimschubert/delete-artifacts/delete-artifacts
+    secrets: inherit
+
